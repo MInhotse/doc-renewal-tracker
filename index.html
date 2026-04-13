@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>證件到期管理系統</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0A0A0A" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>" />
+</head>
+<body>
+
+<div class="app-wrapper">
+
+  <!-- ===== Header ===== -->
+  <header class="app-header">
+    <div class="app-logo">
+      <div class="icon">📋</div>
+      <div>
+        <div class="app-title">證件到期管理系統</div>
+        <div class="app-subtitle">DOCUMENT RENEWAL TRACKER</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost" id="btn-setup">⚙️ Google API</button>
+      <button class="btn btn-primary" id="btn-add">＋ 新增證件</button>
+    </div>
+  </header>
+
+  <!-- ===== Summary Cards ===== -->
+  <div class="summary-grid">
+    <div class="stat-card" style="cursor:pointer" onclick="setFilter('all')">
+      <div class="stat-label">全部證件</div>
+      <div class="stat-value gold" id="stat-total">0</div>
+    </div>
+    <div class="stat-card" style="cursor:pointer" onclick="setFilter('expired')">
+      <div class="stat-label">已過期</div>
+      <div class="stat-value red" id="stat-expired">0</div>
+    </div>
+    <div class="stat-card" style="cursor:pointer" onclick="setFilter('urgent')">
+      <div class="stat-label">緊急（30天內）</div>
+      <div class="stat-value orange" id="stat-urgent">0</div>
+    </div>
+    <div class="stat-card" style="cursor:pointer" onclick="setFilter('ok')">
+      <div class="stat-label">狀態正常</div>
+      <div class="stat-value green" id="stat-ok">0</div>
+    </div>
+  </div>
+
+  <!-- ===== Google Calendar Banner ===== -->
+  <div class="gcal-banner" id="gcal-status">
+    <span class="gcal-icon">📅</span>
+    <div class="gcal-text"><strong>Google Calendar</strong><span>載入中…</span></div>
+  </div>
+  <div style="display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap;">
+    <button class="btn btn-ghost" id="btn-gcal-signin"  style="display:none">🔑 登入 Google</button>
+    <button class="btn btn-ghost" id="btn-gcal-signout" style="display:none">🚪 登出</button>
+    <button class="btn btn-ghost" id="btn-sync-all"     style="display:none">🔄 全部同步至日曆</button>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ===== Category Filters ===== -->
+  <div style="margin-bottom:14px;">
+    <span class="section-tag">🏷 分類篩選</span>
+  </div>
+  <div class="cat-filter-bar" id="category-filters">
+    <!-- rendered by JS -->
+  </div>
+
+  <!-- ===== Status + Search + View Toggle ===== -->
+  <div class="filter-bar">
+    <button class="filter-btn active" data-filter="all">全部</button>
+    <button class="filter-btn" data-filter="expired">已過期</button>
+    <button class="filter-btn" data-filter="urgent">緊急</button>
+    <button class="filter-btn" data-filter="warning">注意</button>
+    <button class="filter-btn" data-filter="ok">正常</button>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-input" placeholder="搜尋名稱、持有人…" />
+    </div>
+    <div class="view-toggle">
+      <button class="btn btn-ghost btn-sm active" id="btn-view-list" title="列表視圖">☰ 列表</button>
+      <button class="btn btn-ghost btn-sm" id="btn-view-group" title="分組視圖">⊞ 分組</button>
+    </div>
+  </div>
+
+  <!-- ===== Doc List ===== -->
+  <div class="section-tag" style="margin-bottom:14px;">📋 證件列表</div>
+  <div class="doc-list" id="doc-list"></div>
+
+</div>
+
+<!-- ======================================================
+     ADD / EDIT MODAL
+====================================================== -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">新增證件</div>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="form-group">
+        <label class="form-label">證件名稱 *</label>
+        <input class="form-control" id="form-name" type="text"
+               list="name-list"
+               placeholder="選擇常用或自由輸入…"
+               autocomplete="off" />
+        <datalist id="name-list">
+          <!-- 由 JS 動態填入 -->
+        </datalist>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">分類</label>
+          <select class="form-control" id="form-category"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">持有人</label>
+          <input class="form-control" id="form-owner" type="text"
+                 list="owner-list"
+                 placeholder="選擇或輸入…"
+                 autocomplete="off" />
+          <datalist id="owner-list">
+            <!-- 由 JS 動態填入已存在的人名 -->
+          </datalist>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">到期日</label>
+          <input class="form-control" id="form-expiry" type="date" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">循環週期</label>
+          <select class="form-control" id="form-recurrence"></select>
+        </div>
+      </div>
+
+      <div class="form-group" id="custom-years-wrap" style="display:none">
+        <label class="form-label">自訂年數</label>
+        <input class="form-control" id="form-custom-years" type="number" min="1" max="20" value="1" />
+        <div class="form-hint">填寫後系統會自動計算下次到期日</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">提前提醒天數</label>
+        <input class="form-control" id="form-remind" type="number" min="1" max="365" value="30" />
+        <div class="form-hint">同步至 Google Calendar 時使用此天數建立提醒</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">備注（自由填寫）</label>
+        <textarea class="form-control" id="form-note"
+          placeholder="可記下辦理地點、所需文件、注意事項、上次更換日期等任何資訊…"></textarea>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="btn-cancel">取消</button>
+      <button class="btn btn-primary" id="btn-save">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================
+     SETUP MODAL
+====================================================== -->
+<div class="modal-overlay" id="setup-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">⚙️ Google API 設定</div>
+      <button class="btn btn-ghost btn-icon" onclick="closeSetupModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-box">
+        <p style="font-size:13px; color:#7aadff; font-weight:600; margin-bottom:10px;">📌 如何取得 Google Client ID？</p>
+        <ol style="font-size:12px; color:var(--text-secondary); line-height:1.9; padding-left:18px;">
+          <li>前往 <a href="https://console.cloud.google.com/" target="_blank" style="color:var(--gold)">Google Cloud Console</a></li>
+          <li>建立新專案或選擇現有專案</li>
+          <li>啟用「Google Calendar API」</li>
+          <li>建立「OAuth 2.0 用戶端 ID」（網頁應用程式）</li>
+          <li>「已授權的 JavaScript 來源」填入本 App 網址</li>
+          <li>複製 Client ID 貼入下方</li>
+        </ol>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Google OAuth Client ID</label>
+        <input class="form-control" id="setup-client-id" type="text"
+               placeholder="xxxxxxxxxx.apps.googleusercontent.com" />
+        <div class="form-hint">Client ID 僅儲存於本機瀏覽器，不會上傳至任何伺服器</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeSetupModal()">取消</button>
+      <button class="btn btn-primary" id="btn-setup-save">儲存設定</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
