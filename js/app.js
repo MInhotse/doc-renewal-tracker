@@ -1,9 +1,10 @@
 // ============================================
-//  證件到期管理系統 v2 - 分類 + 週期循環
+//  證件到期管理系統 v2 - 分類 + 週期循環 + 密碼保護
 // ============================================
 
 const STORAGE_KEY = 'doc_renewal_v2';
 const GCAL_CLIENT_ID_KEY = 'gcal_client_id';
+const AUTH_KEY = 'doc_renewal_auth'; // 登入狀態 key
 
 // ---- 分類定義 ----
 const CATEGORIES = {
@@ -41,6 +42,10 @@ let gisReady   = false;
 let tokenClient = null;
 let isSignedIn  = false;
 let viewMode = 'list'; // 'list' | 'group'
+let isAuthenticated = false; // 登入狀態
+
+// ---- 密碼設定（可自行修改）----
+const APP_PASSWORD = '123456'; // 預設密碼，建議改為更安全的密碼
 
 // ---- Helpers ----
 function uuid() {
@@ -660,6 +665,7 @@ document.getElementById('btn-gcal-signin').addEventListener('click', signIn);
 document.getElementById('btn-gcal-signout').addEventListener('click', signOut);
 document.getElementById('btn-sync-all').addEventListener('click', syncAllToGCal);
 document.getElementById('btn-cancel').addEventListener('click', closeModal);
+document.getElementById('btn-logout').addEventListener('click', logout);
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeModal(); closeSetupModal(); }
@@ -673,51 +679,115 @@ function setFilter(f) {
   viewMode === 'group' ? renderGrouped() : renderList();
 }
 
-// ---- Demo Data ----
-function loadDemo() {
-  if (docs.length > 0) return;
-  const today = new Date();
-  const offset = days => {
-    const d = new Date(today);
-    d.setDate(d.getDate() + days);
-    return d.toISOString().slice(0,10);
-  };
-  // Use a known past base date for recurring docs so the auto-calc kicks in
-  const pastDate = (yearsAgo, monthOffset=0) => {
-    const d = new Date(today);
-    d.setFullYear(d.getFullYear() - yearsAgo);
-    d.setMonth(d.getMonth() + monthOffset);
-    return d.toISOString().slice(0,10);
-  };
+// ---- 密碼保護功能 ----
+function checkAuth() {
+  // 檢查 sessionStorage（分頁級別）和 localStorage（持久級別）
+  const sessionAuth = sessionStorage.getItem(AUTH_KEY);
+  const persistentAuth = localStorage.getItem(AUTH_KEY);
+  isAuthenticated = sessionAuth === 'true' || persistentAuth === 'true';
+  return isAuthenticated;
+}
 
-  docs = [
-    // 身份證件
-    { id:uuid(), name:'澳門居民身份證',         category:'identity',  owner:'本人', expiry: offset(1200), recurrence:'none',    note:'10年有效',           remindDays:90, createdAt:new Date().toISOString() },
-    { id:uuid(), name:'兒子身份證',              category:'identity',  owner:'兒子', expiry: offset(-5),   recurrence:'none',    note:'已過期需更換',       remindDays:30, createdAt:new Date().toISOString() },
-    // 旅遊證件
-    { id:uuid(), name:'香港特區護照',            category:'travel',   owner:'本人', expiry: offset(420),  recurrence:'10years', note:'10年效期',           remindDays:90, createdAt:new Date().toISOString() },
-    { id:uuid(), name:'回鄉証（港澳通行証）',    category:'travel',   owner:'本人', expiry: offset(25),   recurrence:'10years', note:'即將到期，需提早辦', remindDays:30, createdAt:new Date().toISOString() },
-    { id:uuid(), name:'兒子港澳通行証',          category:'travel',   owner:'兒子', expiry: offset(180),  recurrence:'5years',  note:'5年效期',            remindDays:60, createdAt:new Date().toISOString() },
-    // 車輛
-    { id:uuid(), name:'車輛牌照（道路稅）',      category:'vehicle',  owner:'本人', expiry: pastDate(0,2), recurrence:'yearly',  note:'每年同日期續期',     remindDays:30, createdAt:new Date().toISOString() },
-    { id:uuid(), name:'車輛驗車（行車安全檢驗）',category:'vehicle',  owner:'本人', expiry: offset(85),   recurrence:'yearly',  note:'澳門交通局',         remindDays:30, createdAt:new Date().toISOString() },
-    // 保險
-    { id:uuid(), name:'私家車保險',              category:'insurance',owner:'本人', expiry: pastDate(0,3), recurrence:'yearly',  note:'第三者+全保，每年同日續保', remindDays:30, createdAt:new Date().toISOString() },
-    { id:uuid(), name:'家居保險',                category:'insurance',owner:'本人', expiry: offset(200),  recurrence:'yearly',  note:'',                   remindDays:30, createdAt:new Date().toISOString() },
-    // 醫療健康
-    { id:uuid(), name:'兒子學校定期健康檢查',    category:'medical',  owner:'兒子', expiry: offset(60),   recurrence:'yearly',  note:'每年一次，需提前預約', remindDays:14, createdAt:new Date().toISOString() },
-    { id:uuid(), name:'本人牙科定期檢查',        category:'medical',  owner:'本人', expiry: offset(40),   recurrence:'biennial',note:'每兩年一次',          remindDays:14, createdAt:new Date().toISOString() },
-    // 牌照/執照
-    { id:uuid(), name:'駕駛執照',                category:'license',  owner:'本人', expiry: offset(730),  recurrence:'10years', note:'',                   remindDays:60, createdAt:new Date().toISOString() },
-    // 財務
-    { id:uuid(), name:'信用卡有效期',            category:'finance',  owner:'本人', expiry: offset(310),  recurrence:'none',    note:'記得提前換卡',        remindDays:30, createdAt:new Date().toISOString() },
-  ];
-  saveDocs();
+function login(password, remember = false) {
+  if (password === APP_PASSWORD) {
+    isAuthenticated = true;
+    sessionStorage.setItem(AUTH_KEY, 'true');
+    if (remember) {
+      localStorage.setItem(AUTH_KEY, 'true');
+    }
+    return true;
+  }
+  return false;
+}
+
+function logout() {
+  isAuthenticated = false;
+  sessionStorage.removeItem(AUTH_KEY);
+  localStorage.removeItem(AUTH_KEY);
+  showLoginScreen();
+}
+
+function showLoginScreen() {
+  const appWrapper = document.querySelector('.app-wrapper');
+  if (appWrapper) {
+    appWrapper.style.display = 'none';
+  }
+  
+  let loginOverlay = document.getElementById('login-overlay');
+  if (!loginOverlay) {
+    loginOverlay = document.createElement('div');
+    loginOverlay.id = 'login-overlay';
+    loginOverlay.className = 'login-overlay';
+    loginOverlay.innerHTML = `
+      <div class="login-box">
+        <div class="login-icon">🔒</div>
+        <h2>證件到期管理系統</h2>
+        <p class="login-subtitle">請輸入密碼以繼續</p>
+        <div class="login-form">
+          <input type="password" id="login-password" class="login-input" placeholder="輸入密碼..." />
+          <label class="login-remember">
+            <input type="checkbox" id="login-remember" /> 記住我（在此裝置上保持登入）
+          </label>
+          <button id="login-btn" class="login-button">登入</button>
+          <div id="login-error" class="login-error"></div>
+        </div>
+        <p class="login-hint">預設密碼：123456<br>建議首次登入後修改密碼</p>
+      </div>
+    `;
+    document.body.appendChild(loginOverlay);
+    
+    // 綁定事件
+    document.getElementById('login-btn').addEventListener('click', handleLogin);
+    document.getElementById('login-password').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleLogin();
+    });
+  }
+  loginOverlay.style.display = 'flex';
+  document.getElementById('login-password').focus();
+}
+
+function handleLogin() {
+  const password = document.getElementById('login-password').value;
+  const remember = document.getElementById('login-remember').checked;
+  const errorEl = document.getElementById('login-error');
+  
+  if (login(password, remember)) {
+    hideLoginScreen();
+    initApp();
+  } else {
+    errorEl.textContent = '密碼錯誤，請重試';
+    document.getElementById('login-password').value = '';
+    document.getElementById('login-password').focus();
+  }
+}
+
+function hideLoginScreen() {
+  const loginOverlay = document.getElementById('login-overlay');
+  if (loginOverlay) {
+    loginOverlay.style.display = 'none';
+  }
+  const appWrapper = document.querySelector('.app-wrapper');
+  if (appWrapper) {
+    appWrapper.style.display = 'block';
+  }
+}
+
+// ---- 初始化應用 ----
+function initApp() {
+  loadDocs();
+  initGoogleApis();
+  updateGCalUI();
+  render();
 }
 
 // ---- Init ----
-loadDocs();
-loadDemo();
-initGoogleApis();
-updateGCalUI();
-render();
+if (checkAuth()) {
+  initApp();
+} else {
+  // 等待 DOM 載入後顯示登入畫面
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', showLoginScreen);
+  } else {
+    showLoginScreen();
+  }
+}
