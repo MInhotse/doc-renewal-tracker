@@ -60,11 +60,23 @@ async function initSupabase() {
     console.log('[Auth] Initializing Supabase...');
     if (typeof window.supabase === 'undefined') {
       console.log('[Auth] Loading Supabase JS SDK...');
-      await new Promise((resolve, reject) => { const script = document.createElement('script'); script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'; script.onload = resolve; script.onerror = reject; document.head.appendChild(script); });
+      await new Promise((resolve, reject) => { 
+        const script = document.createElement('script'); 
+        script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'; 
+        script.onload = resolve; 
+        script.onerror = () => reject(new Error('Failed to load Supabase SDK'));
+        document.head.appendChild(script); 
+      });
     }
+    
+    if (!window.supabase || !window.supabase.createClient) {
+      throw new Error('Supabase library not loaded properly');
+    }
+    
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     console.log('[Auth] Supabase client created');
     
+    // Test connection
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) {
       console.error('[Auth] getSession error:', error);
@@ -90,8 +102,50 @@ async function initSupabase() {
     });
   } catch (err) {
     console.error('[Auth] Init error:', err);
-    showAuthScreen();
+    showAuthScreenWithError(err.message);
   }
+}
+
+function showAuthScreenWithError(errorMsg) {
+  console.log('[Auth] Showing auth screen with error:', errorMsg);
+  const appWrapper = document.querySelector('.app-wrapper');
+  if (appWrapper) appWrapper.style.display = 'none';
+  
+  let authOverlay = document.getElementById('auth-overlay');
+  if (!authOverlay) {
+    authOverlay = document.createElement('div');
+    authOverlay.id = 'auth-overlay';
+    authOverlay.className = 'auth-overlay';
+    authOverlay.innerHTML = `
+      <div class="auth-box">
+        <div class="auth-logo">📋</div>
+        <h2>證件到期管理系統</h2>
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-tab="login">登入</button>
+          <button class="auth-tab" data-tab="signup">註冊</button>
+        </div>
+        <div class="auth-form" id="auth-form-login">
+          <input type="email" id="login-email" class="auth-input" placeholder="電郵地址" />
+          <input type="password" id="login-password" class="auth-input" placeholder="密碼" />
+          <button id="btn-login" class="auth-button">登入</button>
+        </div>
+        <div class="auth-form" id="auth-form-signup" style="display:none">
+          <input type="email" id="signup-email" class="auth-input" placeholder="電郵地址" />
+          <input type="password" id="signup-password" class="auth-input" placeholder="密碼（至少6位）" />
+          <input type="password" id="signup-confirm" class="auth-input" placeholder="確認密碼" />
+          <button id="btn-signup" class="auth-button">註冊</button>
+        </div>
+        <div id="auth-error" class="auth-error">${errorMsg ? '⚠️ ' + errorMsg : ''}</div>
+      </div>
+    `;
+    document.body.appendChild(authOverlay);
+    document.querySelectorAll('.auth-tab').forEach(tab => tab.addEventListener('click', () => switchAuthTab(tab.dataset.tab)));
+    document.getElementById('btn-login').addEventListener('click', handleLogin);
+    document.getElementById('btn-signup').addEventListener('click', handleSignup);
+    ['login-email','login-password'].forEach(id => document.getElementById(id).addEventListener('keypress', e => { if(e.key==='Enter') handleLogin(); }));
+    ['signup-email','signup-password','signup-confirm'].forEach(id => document.getElementById(id).addEventListener('keypress', e => { if(e.key==='Enter') handleSignup(); }));
+  }
+  authOverlay.style.display = 'flex';
 }
 
 async function loadDocsFromSupabase() {
