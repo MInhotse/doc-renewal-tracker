@@ -799,8 +799,8 @@ input[list].form-control {
   margin-bottom: 20px;
 }
 
-/* ---- Login Screen ---- */
-.login-overlay {
+/* ---- Auth Screen ---- */
+.auth-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   background: var(--bg-primary);
@@ -810,7 +810,7 @@ input[list].form-control {
   z-index: 10000;
 }
 
-.login-box {
+.auth-box {
   background: var(--bg-card);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -819,40 +819,66 @@ input[list].form-control {
   border-radius: var(--radius);
   padding: 48px 40px;
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   text-align: center;
   box-shadow: var(--shadow);
 }
 
-.login-icon {
+.auth-logo {
   font-size: 56px;
   margin-bottom: 20px;
   filter: drop-shadow(0 0 20px rgba(212,175,55,0.3));
 }
 
-.login-box h2 {
+.auth-box h2 {
   font-size: 22px;
   font-weight: 700;
   background: linear-gradient(135deg, #fff, var(--gold-light));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  margin-bottom: 8px;
+  margin-bottom: 24px;
 }
 
-.login-subtitle {
-  font-size: 14px;
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  background: rgba(255,255,255,0.04);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
   color: var(--text-secondary);
-  margin-bottom: 28px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.login-form {
+.auth-tab:hover {
+  color: var(--text-primary);
+}
+
+.auth-tab.active {
+  background: rgba(212,175,55,0.15);
+  color: var(--gold);
+}
+
+.auth-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
-.login-input {
+.auth-input {
   width: 100%;
   padding: 14px 18px;
   background: rgba(255,255,255,0.04);
@@ -860,43 +886,24 @@ input[list].form-control {
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 16px;
-  text-align: center;
-  letter-spacing: 2px;
+  font-size: 15px;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.login-input:focus {
+.auth-input:focus {
   border-color: var(--gold-dim);
   box-shadow: 0 0 0 3px rgba(212,175,55,0.1);
 }
 
-.login-input::placeholder {
+.auth-input::placeholder {
   color: var(--text-muted);
-  letter-spacing: normal;
 }
 
-.login-remember {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
-.login-remember input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--gold);
-  cursor: pointer;
-}
-
-.login-button {
+.auth-button {
   width: 100%;
   padding: 14px 24px;
+  margin-top: 8px;
   background: linear-gradient(135deg, var(--gold), #B8941F);
   border: none;
   border-radius: var(--radius-sm);
@@ -908,26 +915,20 @@ input[list].form-control {
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.login-button:hover {
+.auth-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(212,175,55,0.3);
 }
 
-.login-button:active {
+.auth-button:active {
   transform: translateY(0);
 }
 
-.login-error {
+.auth-error {
   font-size: 13px;
   color: var(--red);
   min-height: 20px;
-}
-
-.login-hint {
-  margin-top: 24px;
-  font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.6;
+  margin-top: 8px;
 }
 
 /* ---- Logout Button ---- */
