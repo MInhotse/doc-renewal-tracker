@@ -56,17 +56,42 @@ function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'
 //  Supabase Auth & Data
 // ============================================
 async function initSupabase() {
-  if (typeof window.supabase === 'undefined') {
-    await new Promise((resolve, reject) => { const script = document.createElement('script'); script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'; script.onload = resolve; script.onerror = reject; document.head.appendChild(script); });
+  try {
+    console.log('[Auth] Initializing Supabase...');
+    if (typeof window.supabase === 'undefined') {
+      console.log('[Auth] Loading Supabase JS SDK...');
+      await new Promise((resolve, reject) => { const script = document.createElement('script'); script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'; script.onload = resolve; script.onerror = reject; document.head.appendChild(script); });
+    }
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log('[Auth] Supabase client created');
+    
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) {
+      console.error('[Auth] getSession error:', error);
+      showAuthScreen();
+      return;
+    }
+    
+    if (session) { 
+      console.log('[Auth] User already logged in:', session.user.email);
+      currentUser = session.user; 
+      await loadDocsFromSupabase(); 
+      showMainApp(); 
+    }
+    else { 
+      console.log('[Auth] No session, showing auth screen');
+      showAuthScreen(); 
+    }
+    
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[Auth] State change:', event);
+      if (event === 'SIGNED_IN' && session) { currentUser = session.user; await loadDocsFromSupabase(); showMainApp(); }
+      else if (event === 'SIGNED_OUT') { currentUser = null; docs = []; showAuthScreen(); }
+    });
+  } catch (err) {
+    console.error('[Auth] Init error:', err);
+    showAuthScreen();
   }
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session) { currentUser = session.user; await loadDocsFromSupabase(); showMainApp(); }
-  else { showAuthScreen(); }
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session) { currentUser = session.user; await loadDocsFromSupabase(); showMainApp(); }
-    else if (event === 'SIGNED_OUT') { currentUser = null; docs = []; showAuthScreen(); }
-  });
 }
 
 async function loadDocsFromSupabase() {
@@ -121,9 +146,13 @@ async function signOut() {
 //  Auth UI
 // ============================================
 function showAuthScreen() {
-  document.querySelector('.app-wrapper').style.display = 'none';
+  console.log('[Auth] Showing auth screen...');
+  const appWrapper = document.querySelector('.app-wrapper');
+  if (appWrapper) appWrapper.style.display = 'none';
+  
   let authOverlay = document.getElementById('auth-overlay');
   if (!authOverlay) {
+    console.log('[Auth] Creating auth overlay...');
     authOverlay = document.createElement('div');
     authOverlay.id = 'auth-overlay';
     authOverlay.className = 'auth-overlay';
@@ -157,6 +186,7 @@ function showAuthScreen() {
     ['signup-email','signup-password','signup-confirm'].forEach(id => document.getElementById(id).addEventListener('keypress', e => { if(e.key==='Enter') handleSignup(); }));
   }
   authOverlay.style.display = 'flex';
+  console.log('[Auth] Auth overlay displayed');
 }
 
 function switchAuthTab(tab) {
