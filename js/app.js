@@ -58,16 +58,6 @@ function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'
 async function initSupabase() {
   try {
     console.log('[Auth] Initializing Supabase...');
-    if (typeof window.supabase === 'undefined') {
-      console.log('[Auth] Loading Supabase JS SDK...');
-      await new Promise((resolve, reject) => { 
-        const script = document.createElement('script'); 
-        script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'; 
-        script.onload = resolve; 
-        script.onerror = () => reject(new Error('Failed to load Supabase SDK'));
-        document.head.appendChild(script); 
-      });
-    }
     
     if (!window.supabase || !window.supabase.createClient) {
       throw new Error('Supabase library not loaded properly');
@@ -76,7 +66,6 @@ async function initSupabase() {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     console.log('[Auth] Supabase client created');
     
-    // Test connection
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) {
       console.error('[Auth] getSession error:', error);
@@ -89,8 +78,7 @@ async function initSupabase() {
       currentUser = session.user; 
       await loadDocsFromSupabase(); 
       showMainApp(); 
-    }
-    else { 
+    } else { 
       console.log('[Auth] No session, showing auth screen');
       showAuthScreen(); 
     }
