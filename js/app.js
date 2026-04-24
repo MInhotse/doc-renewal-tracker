@@ -95,45 +95,7 @@ async function initSupabase() {
 }
 
 function showAuthScreenWithError(errorMsg) {
-  console.log('[Auth] Showing auth screen with error:', errorMsg);
-  const appWrapper = document.querySelector('.app-wrapper');
-  if (appWrapper) appWrapper.style.display = 'none';
-  
-  let authOverlay = document.getElementById('auth-overlay');
-  if (!authOverlay) {
-    authOverlay = document.createElement('div');
-    authOverlay.id = 'auth-overlay';
-    authOverlay.className = 'auth-overlay';
-    authOverlay.innerHTML = `
-      <div class="auth-box">
-        <div class="auth-logo">📋</div>
-        <h2>證件到期管理系統</h2>
-        <div class="auth-tabs">
-          <button class="auth-tab active" data-tab="login">登入</button>
-          <button class="auth-tab" data-tab="signup">註冊</button>
-        </div>
-        <div class="auth-form" id="auth-form-login">
-          <input type="email" id="login-email" class="auth-input" placeholder="電郵地址" />
-          <input type="password" id="login-password" class="auth-input" placeholder="密碼" />
-          <button id="btn-login" class="auth-button">登入</button>
-        </div>
-        <div class="auth-form" id="auth-form-signup" style="display:none">
-          <input type="email" id="signup-email" class="auth-input" placeholder="電郵地址" />
-          <input type="password" id="signup-password" class="auth-input" placeholder="密碼（至少6位）" />
-          <input type="password" id="signup-confirm" class="auth-input" placeholder="確認密碼" />
-          <button id="btn-signup" class="auth-button">註冊</button>
-        </div>
-        <div id="auth-error" class="auth-error">${errorMsg ? '⚠️ ' + errorMsg : ''}</div>
-      </div>
-    `;
-    document.body.appendChild(authOverlay);
-    document.querySelectorAll('.auth-tab').forEach(tab => tab.addEventListener('click', () => switchAuthTab(tab.dataset.tab)));
-    document.getElementById('btn-login').addEventListener('click', handleLogin);
-    document.getElementById('btn-signup').addEventListener('click', handleSignup);
-    ['login-email','login-password'].forEach(id => document.getElementById(id).addEventListener('keypress', e => { if(e.key==='Enter') handleLogin(); }));
-    ['signup-email','signup-password','signup-confirm'].forEach(id => document.getElementById(id).addEventListener('keypress', e => { if(e.key==='Enter') handleSignup(); }));
-  }
-  authOverlay.style.display = 'flex';
+  showAuthScreen(errorMsg);
 }
 
 async function loadDocsFromSupabase() {
@@ -179,7 +141,7 @@ async function signIn(email, password) {
   return true;
 }
 
-async function signOut() {
+async function supabaseSignOut() {
   await supabase.auth.signOut();
   currentUser = null; docs = []; showAuthScreen();
 }
@@ -187,50 +149,49 @@ async function signOut() {
 // ============================================
 //  Auth UI
 // ============================================
-function showAuthScreen() {
+function showAuthScreen(errorMsg = '') {
   console.log('[Auth] Showing auth screen...');
   const appWrapper = document.querySelector('.app-wrapper');
   if (appWrapper) appWrapper.style.display = 'none';
   
-  let authOverlay = document.getElementById('auth-overlay');
-  if (!authOverlay) {
-    console.log('[Auth] Creating auth overlay...');
-    authOverlay = document.createElement('div');
-    authOverlay.id = 'auth-overlay';
-    authOverlay.className = 'auth-overlay';
-    authOverlay.innerHTML = `
-      <div class="auth-box">
-        <div class="auth-logo">📋</div>
-        <h2>證件到期管理系統</h2>
-        <div class="auth-tabs">
-          <button class="auth-tab active" data-tab="login">登入</button>
-          <button class="auth-tab" data-tab="signup">註冊</button>
-        </div>
-        <div class="auth-form" id="auth-form-login">
-          <input type="email" id="login-email" class="auth-input" placeholder="電郵地址" />
-          <input type="password" id="login-password" class="auth-input" placeholder="密碼" />
-          <button id="btn-login" class="auth-button">登入</button>
-        </div>
-        <div class="auth-form" id="auth-form-signup" style="display:none">
-          <input type="email" id="signup-email" class="auth-input" placeholder="電郵地址" />
-          <input type="password" id="signup-password" class="auth-input" placeholder="密碼（至少6位）" />
-          <input type="password" id="signup-confirm" class="auth-input" placeholder="確認密碼" />
-          <button id="btn-signup" class="auth-button">註冊</button>
-        </div>
-        <div id="auth-error" class="auth-error"></div>
+  // Remove existing overlay to recreate fresh (avoids stale event listeners)
+  const existing = document.getElementById('auth-overlay');
+  if (existing) existing.remove();
+
+  const authOverlay = document.createElement('div');
+  authOverlay.id = 'auth-overlay';
+  authOverlay.className = 'auth-overlay';
+  authOverlay.innerHTML = `
+    <div class="auth-box">
+      <div class="auth-logo">📋</div>
+      <h2>證件到期管理系統</h2>
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="login">登入</button>
+        <button class="auth-tab" data-tab="signup">註冊</button>
       </div>
-    `;
-    document.body.appendChild(authOverlay);
-    document.querySelectorAll('.auth-tab').forEach(tab => tab.addEventListener('click', () => switchAuthTab(tab.dataset.tab)));
-    document.getElementById('btn-login').addEventListener('click', handleLogin);
-    document.getElementById('btn-signup').addEventListener('click', handleSignup);
-    ['login-email','login-password'].forEach(id => document.getElementById(id).addEventListener('keypress', e => { if(e.key==='Enter') handleLogin(); }));
-    ['signup-email','signup-password','signup-confirm'].forEach(id => document.getElementById(id).addEventListener('keypress', e => { if(e.key==='Enter') handleSignup(); }));
-  }
-  authOverlay.style.display = 'flex';
+      <div class="auth-form" id="auth-form-login">
+        <input type="email" id="login-email" class="auth-input" placeholder="電郵地址" autocomplete="email" />
+        <input type="password" id="login-password" class="auth-input" placeholder="密碼" autocomplete="current-password" />
+        <button id="btn-login" class="auth-button">登入</button>
+      </div>
+      <div class="auth-form" id="auth-form-signup" style="display:none">
+        <input type="email" id="signup-email" class="auth-input" placeholder="電郵地址" autocomplete="email" />
+        <input type="password" id="signup-password" class="auth-input" placeholder="密碼（至少6位）" autocomplete="new-password" />
+        <input type="password" id="signup-confirm" class="auth-input" placeholder="確認密碼" autocomplete="new-password" />
+        <button id="btn-signup" class="auth-button">註冊</button>
+      </div>
+      <div id="auth-error" class="auth-error">${errorMsg ? '⚠️ ' + errorMsg : ''}</div>
+    </div>
+  `;
+  document.body.appendChild(authOverlay);
+  authOverlay.querySelectorAll('.auth-tab').forEach(tab => tab.addEventListener('click', () => switchAuthTab(tab.dataset.tab)));
+  document.getElementById('btn-login').addEventListener('click', handleLogin);
+  document.getElementById('btn-signup').addEventListener('click', handleSignup);
+  ['login-email','login-password'].forEach(id => document.getElementById(id).addEventListener('keypress', e => { if(e.key==='Enter') handleLogin(); }));
+  ['signup-email','signup-password','signup-confirm'].forEach(id => document.getElementById(id).addEventListener('keypress', e => { if(e.key==='Enter') handleSignup(); }));
   console.log('[Auth] Auth overlay displayed');
 }
-
+          <button id="btn-signup" class="auth-button">註冊</button>
 function switchAuthTab(tab) {
   document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.getElementById('auth-form-login').style.display = tab === 'login' ? 'block' : 'none';
@@ -469,8 +430,8 @@ function initGoogleApis() {
   if (typeof google === 'undefined' || !google.accounts) { const s2 = document.createElement('script'); s2.src = 'https://accounts.google.com/gsi/client'; s2.onload = () => { tokenClient = google.accounts.oauth2.initTokenClient({ client_id: clientId, scope: GCAL_SCOPE, callback: (resp) => { if (resp.error) { showToast('Google 登入失敗：' + resp.error, 'error'); return; } isGCalSignedIn = true; updateGCalUI(); showToast('已成功連結 Google Calendar ✓', 'success'); } }); gisReady = true; tryFinishInit(); }; document.head.appendChild(s2); }
 }
 function tryFinishInit() { if (gapiReady && gisReady) updateGCalUI(); }
-function signIn() { if (!tokenClient) { showToast('請先設定 Google API Client ID', 'error'); return; } tokenClient.requestAccessToken({ prompt: 'consent' }); }
-function signOut() { const token = gapi?.client?.getToken()?.access_token; if (token) { google.accounts.oauth2.revoke(token, () => {}); gapi.client.setToken(null); } isGCalSignedIn = false; updateGCalUI(); showToast('已登出 Google Calendar', 'info'); }
+function gcalSignIn() { if (!tokenClient) { showToast('請先設定 Google API Client ID', 'error'); return; } tokenClient.requestAccessToken({ prompt: 'consent' }); }
+function gcalSignOut() { const token = gapi?.client?.getToken()?.access_token; if (token) { google.accounts.oauth2.revoke(token, () => {}); gapi.client.setToken(null); } isGCalSignedIn = false; updateGCalUI(); showToast('已登出 Google Calendar', 'info'); }
 
 async function createGCalEvent(doc) {
   if (!isGCalSignedIn || !gapiReady) { showToast('請先登入 Google Calendar', 'error'); return false; }
@@ -496,12 +457,12 @@ document.getElementById('btn-setup-save').addEventListener('click', () => { cons
 // ============================================
 document.getElementById('btn-add').addEventListener('click', openAdd);
 document.getElementById('btn-setup').addEventListener('click', openSetupModal);
-document.getElementById('btn-gcal-signin').addEventListener('click', signIn);
-document.getElementById('btn-gcal-signout').addEventListener('click', signOut);
+document.getElementById('btn-gcal-signin').addEventListener('click', gcalSignIn);
+document.getElementById('btn-gcal-signout').addEventListener('click', gcalSignOut);
 document.getElementById('btn-sync-all').addEventListener('click', syncAllToGCal);
 document.getElementById('btn-cancel').addEventListener('click', closeModal);
 document.getElementById('btn-save').addEventListener('click', saveDoc);
-document.getElementById('btn-logout').addEventListener('click', signOut);
+document.getElementById('btn-logout').addEventListener('click', supabaseSignOut);
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeSetupModal(); } if ((e.ctrlKey||e.metaKey) && e.key === 'n') { e.preventDefault(); openAdd(); } });
 
