@@ -181,7 +181,7 @@ function showAuthScreen(errorMsg = '') {
   ['signup-email','signup-password','signup-confirm'].forEach(id => document.getElementById(id).addEventListener('keypress', e => { if(e.key==='Enter') handleSignup(); }));
   console.log('[Auth] Auth overlay displayed');
 }
-          <button id="btn-signup" class="auth-button">註冊</button>
+
 function switchAuthTab(tab) {
   document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.getElementById('auth-form-login').style.display = tab === 'login' ? 'block' : 'none';
