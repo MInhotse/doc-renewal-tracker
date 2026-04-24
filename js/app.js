@@ -1,12 +1,13 @@
 // ============================================
 //  證件到期管理系統 v3 - Supabase Auth + 雲端同步
 // ============================================
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 const SUPABASE_URL = 'https://zgkfuejazoloiodhucng.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpna2Z1ZWphem9sb2lvZGh1Y25nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MjA5MTYsImV4cCI6MjA5MTI5NjkxNn0.7C0lpRScT5OTJwDBYrx-GNRaH-jsfC4M_GvFSBSoPXI';
 const GCAL_CLIENT_ID_KEY = 'gcal_client_id';
 
-let supabase = null;
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentUser = null;
 
 const CATEGORIES = {
@@ -59,13 +60,6 @@ async function initSupabase() {
   try {
     console.log('[Auth] Initializing Supabase...');
     
-    if (!window.supabase || !window.supabase.createClient) {
-      throw new Error('Supabase library not loaded properly');
-    }
-    
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log('[Auth] Supabase client created');
-    
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) {
       console.error('[Auth] getSession error:', error);
@@ -90,12 +84,8 @@ async function initSupabase() {
     });
   } catch (err) {
     console.error('[Auth] Init error:', err);
-    showAuthScreenWithError(err.message);
+    showAuthScreen(err.message);
   }
-}
-
-function showAuthScreenWithError(errorMsg) {
-  showAuthScreen(errorMsg);
 }
 
 async function loadDocsFromSupabase() {
